@@ -52,7 +52,6 @@ export default function UnitEditScreen() {
     rent?: string;
     deposit?: string;
     serviceCharge?: string;
-    effectiveAt?: string;
   }>();
   const { unitId } = params;
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +66,7 @@ export default function UnitEditScreen() {
       rent: params.rent ?? "",
       deposit: params.deposit ?? "",
       serviceCharge: params.serviceCharge ?? "",
-      effectiveAt: params.effectiveAt ?? "",
+      effectiveAt: "",
     },
   });
   const unitLabel = watch("unitLabel");

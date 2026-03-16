@@ -14,12 +14,12 @@ export const backendGaps: BackendGap[] = [
       "Add memberships + roles payload and migrate role probing to /auth/me with one-release fallback.",
   },
   {
-    id: "service-provider-crud",
-    title: "Owner/agent service provider CRUD missing",
+    id: "tenant-service-directory",
+    title: "Tenant service directory missing",
     missingEndpoint:
-      "POST/GET/PATCH/DELETE /service-providers",
+      "GET /tenant/me/service-providers",
     recommendation:
-      "Expose CRUD endpoints to unlock owner-managed provider directory and contacts.",
+      "Expose a tenant-scoped service-provider directory so tenant screens can show property contacts without owner-only property IDs.",
   },
   {
     id: "tenant-tickets-read",

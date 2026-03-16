@@ -18,12 +18,24 @@ const schema = z.object({
   firstName: z.string().min(1, "First name is required."),
   lastName: z.string().min(1, "Last name is required."),
   phone: z.string().optional(),
+  password: z.string().min(8, "Password must be at least 8 characters."),
+  confirmPassword: z.string().min(8, "Confirm password must be at least 8 characters."),
+}).refine((value) => value.password === value.confirmPassword, {
+  message: "Passwords do not match.",
+  path: ["confirmPassword"],
 });
 
 type FormValue = z.infer<typeof schema>;
 
 export default function OnboardingProfileScreen() {
-  const { inviteToken } = useLocalSearchParams<{ inviteToken?: string }>();
+  const { inviteToken, inviteId, orgId, unitId, houseUnitId, unitLabel } = useLocalSearchParams<{
+    inviteToken?: string;
+    inviteId?: string;
+    orgId?: string;
+    unitId?: string;
+    houseUnitId?: string;
+    unitLabel?: string;
+  }>();
   const [error, setError] = useState<string | null>(null);
   const { control, handleSubmit } = useForm<FormValue>({
     resolver: zodResolver(schema),
@@ -31,6 +43,8 @@ export default function OnboardingProfileScreen() {
       firstName: "",
       lastName: "",
       phone: "",
+      password: "",
+      confirmPassword: "",
     },
   });
 
@@ -40,7 +54,12 @@ export default function OnboardingProfileScreen() {
         throw new Error("Missing invite token.");
       }
 
-      return onboardingApi.completeProfile(inviteToken, payload);
+      return onboardingApi.completeProfile(inviteToken, {
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        phone: payload.phone,
+        password: payload.password,
+      });
     },
     onSuccess: (result) => {
       setError(null);
@@ -48,7 +67,13 @@ export default function OnboardingProfileScreen() {
         pathname: "/onboarding/sign",
         params: {
           inviteToken,
+          inviteId: inviteId ?? undefined,
+          orgId: orgId ?? undefined,
           leaseId: result.leaseId,
+          userId: result.userId,
+          unitId: unitId ?? undefined,
+          houseUnitId: houseUnitId ?? unitId ?? undefined,
+          unitLabel: unitLabel ?? undefined,
         },
       });
     },
@@ -95,6 +120,34 @@ export default function OnboardingProfileScreen() {
             value={field.value}
             onChangeText={field.onChange}
             keyboardType="phone-pad"
+            error={fieldState.error?.message}
+          />
+        )}
+      />
+      <Controller
+        control={control}
+        name="password"
+        render={({ field, fieldState }) => (
+          <LabeledInput
+            label="Password"
+            value={field.value}
+            onChangeText={field.onChange}
+            secureTextEntry
+            autoCapitalize="none"
+            error={fieldState.error?.message}
+          />
+        )}
+      />
+      <Controller
+        control={control}
+        name="confirmPassword"
+        render={({ field, fieldState }) => (
+          <LabeledInput
+            label="Confirm password"
+            value={field.value}
+            onChangeText={field.onChange}
+            secureTextEntry
+            autoCapitalize="none"
             error={fieldState.error?.message}
           />
         )}

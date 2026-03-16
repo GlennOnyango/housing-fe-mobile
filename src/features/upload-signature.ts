@@ -1,5 +1,11 @@
 import { filesApi } from "@/src/api/services";
 
+export interface UploadedSignature {
+  signatureImageUrl: string;
+  previewUrl: string;
+  assetId: string;
+}
+
 export async function uploadSignatureDataUrl(dataUrl: string) {
   const fileName = `signature-${Date.now()}.png`;
   const contentType = "image/png";
@@ -21,5 +27,11 @@ export async function uploadSignatureDataUrl(dataUrl: string) {
     sizeBytes: blob.size,
   });
 
-  return asset.url ?? presigned.key;
+  const download = await filesApi.presignDownload(asset.assetId);
+
+  return {
+    signatureImageUrl: asset.url ?? presigned.key,
+    previewUrl: download.downloadUrl,
+    assetId: asset.assetId,
+  } satisfies UploadedSignature;
 }

@@ -19,7 +19,8 @@ export default function OnboardingEntryScreen() {
       <SectionCard title="Flow">
         <Text>1. Claim invite token</Text>
         <Text>2. Complete profile with `x-invite-token`</Text>
-        <Text>3. Upload signature and sign lease</Text>
+        <Text>3. Review lease preview</Text>
+        <Text>4. Accept lease</Text>
       </SectionCard>
       <PrimaryButton
         onPress={() =>

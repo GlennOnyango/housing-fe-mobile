@@ -137,16 +137,63 @@ export type UpdateUnitDto = {
     effectiveAt?: string;
 };
 
+export type AmenityCondition = 'GOOD' | 'BROKEN';
+
 export type CreateAmenityDto = {
+    unitId?: string;
+    condition?: AmenityCondition;
     name: string;
+    price: number;
+    fixedOn?: string;
 };
 
 export type AmenityResponseDto = {
     id: string;
     orgId: string;
+    propertyId?: string | null;
+    houseUnitId?: string | null;
     name: string;
+    price: string;
+    condition: AmenityCondition;
+    fixedOn?: string | null;
     createdAt: string;
     updatedAt: string;
+};
+
+export type UpdateAmenityDto = {
+    condition?: AmenityCondition;
+    name?: string;
+    price?: number;
+    fixedOn?: string;
+};
+
+export type CreateServiceDto = {
+    category: string;
+    providerName: string;
+    providerPhone?: string;
+};
+
+export type ServiceStatus = 'ACTIVE' | 'CLOSED';
+
+export type ServiceProviderResponseDto = {
+    id: string;
+    orgId: string;
+    propertyId?: string | null;
+    category: string;
+    providerName: string;
+    providerPhone?: string | null;
+    status: ServiceStatus;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type UpdateServiceDto = {
+    category: string;
+    providerName: string;
+    providerPhone?: string;
+    status?: {
+        [key: string]: unknown;
+    };
 };
 
 export type OnboardingConfigResponseDto = {
@@ -169,21 +216,28 @@ export type CreateLeaseTemplateDto = {
     requiredFields?: {
         [key: string]: string;
     };
+    propertyId: string;
+    unitId?: string;
     name: string;
-    documentMarkdown?: string;
-    documentHtml?: string;
+    documentObjectKey: string;
+    documentFileName?: string;
+    documentContentType?: string;
 };
 
 export type LeaseTemplateResponseDto = {
     id: string;
     orgId: string;
+    propertyId: string;
+    unitId?: string | null;
     name: string;
     version: number;
     requiredFields?: {
         [key: string]: string;
     } | null;
-    documentMarkdown?: string | null;
-    documentHtml?: string | null;
+    documentObjectKey?: string | null;
+    documentFileName?: string | null;
+    documentContentType?: string | null;
+    previewUrl?: string | null;
     createdAt: string;
     updatedAt: string;
 };
@@ -192,8 +246,11 @@ export type NewLeaseTemplateVersionDto = {
     requiredFields?: {
         [key: string]: string;
     };
-    documentMarkdown?: string;
-    documentHtml?: string;
+    propertyId?: string;
+    unitId?: string;
+    documentObjectKey?: string;
+    documentFileName?: string;
+    documentContentType?: string;
 };
 
 export type InviteTenantDto = {
@@ -226,11 +283,26 @@ export type ClaimInviteResponseDto = {
     tenantPhone?: string | null;
 };
 
+export type LeaseTemplatePreviewResponseDto = {
+    leaseId: string;
+    userId: string;
+    orgId: string;
+    houseUnitId: string;
+    templateId: string;
+    templateVersion: number;
+    documentObjectKey: string;
+    documentFileName?: string | null;
+    documentContentType?: string | null;
+    previewUrl: string;
+    expiresInSeconds: number;
+};
+
 export type CompleteProfileDto = {
     firstName?: string;
     lastName?: string;
     phone?: string;
     nationalId?: string;
+    password: string;
 };
 
 export type CompleteProfileResponseDto = {
@@ -238,9 +310,9 @@ export type CompleteProfileResponseDto = {
     leaseId: string;
 };
 
-export type SignLeaseDto = {
+export type AcceptLeaseDto = {
     leaseId: string;
-    signatureImageUrl?: string;
+    inviteId?: string;
 };
 
 export type LeaseDocumentResponseDto = {
@@ -254,6 +326,58 @@ export type LeaseDocumentResponseDto = {
     } | null;
     signedAt?: string | null;
     createdAt: string;
+};
+
+export type AcceptLeaseResponseDto = {
+    leaseDocument: LeaseDocumentResponseDto;
+    accessToken: string;
+    refreshToken: string;
+};
+
+export type PresignUploadDto = {
+    metadata?: {
+        [key: string]: string;
+    };
+    filename: string;
+    contentType: string;
+};
+
+export type PresignUploadResponseDto = {
+    url: string;
+    method: string;
+    expiresInSeconds: number;
+    key: string;
+    previewUrl: string;
+};
+
+export type CreateFileAssetDto = {
+    encryptedMeta?: {
+        [key: string]: string;
+    };
+    type: string;
+    url: string;
+    checksum?: string;
+};
+
+export type FileAssetResponseDto = {
+    id: string;
+    orgId?: string | null;
+    ownerUserId?: string | null;
+    type: string;
+    url: string;
+    checksum?: string | null;
+    encryptedMeta?: {
+        [key: string]: string;
+    } | null;
+    deletedAt?: string | null;
+    virusScanStatus: string;
+    virusScannedAt?: string | null;
+    createdAt: string;
+};
+
+export type PresignDownloadResponseDto = {
+    url: string;
+    expiresInSeconds: number;
 };
 
 export type LeaseStatus = 'PENDING' | 'ACTIVE' | 'ENDED' | 'CANCELLED';
@@ -279,6 +403,11 @@ export type PaginatedTenantLeaseResponseDto = {
     total: number;
     page: number;
     pageSize: number;
+};
+
+export type PendingLeaseAcceptanceResponseDto = {
+    hasPendingLease: boolean;
+    lease?: TenantLeaseResponseDto | null;
 };
 
 export type InvoiceStatus = 'PENDING' | 'PAID' | 'PARTIAL' | 'VOID' | 'OVERDUE';
@@ -421,19 +550,6 @@ export type UpdateTicketDto = {
     assignedCaretakerId?: string;
 };
 
-export type ServiceProviderResponseDto = {
-    id: string;
-    orgId: string;
-    name: string;
-    category: string;
-    contacts?: {
-        [key: string]: string;
-    } | null;
-    vetted: boolean;
-    createdAt: string;
-    updatedAt: string;
-};
-
 export type GenerateInvoicesDto = {
     period: string;
 };
@@ -515,51 +631,6 @@ export type AuditLogResponseDto = {
 export type AdminOnboardingDefaultsDto = {
     requiredDocuments?: Array<string>;
     requiredProfileFields?: Array<string>;
-};
-
-export type PresignUploadDto = {
-    metadata?: {
-        [key: string]: string;
-    };
-    filename: string;
-    contentType: string;
-};
-
-export type PresignUploadResponseDto = {
-    url: string;
-    method: string;
-    expiresInSeconds: number;
-    key: string;
-};
-
-export type CreateFileAssetDto = {
-    encryptedMeta?: {
-        [key: string]: string;
-    };
-    type: string;
-    url: string;
-    checksum?: string;
-};
-
-export type FileAssetResponseDto = {
-    id: string;
-    orgId?: string | null;
-    ownerUserId?: string | null;
-    type: string;
-    url: string;
-    checksum?: string | null;
-    encryptedMeta?: {
-        [key: string]: string;
-    } | null;
-    deletedAt?: string | null;
-    virusScanStatus: string;
-    virusScannedAt?: string | null;
-    createdAt: string;
-};
-
-export type PresignDownloadResponseDto = {
-    url: string;
-    expiresInSeconds: number;
 };
 
 export type HealthResponseDto = {
@@ -821,63 +892,144 @@ export type UnitsControllerUpdateResponses = {
 
 export type UnitsControllerUpdateResponse = UnitsControllerUpdateResponses[keyof UnitsControllerUpdateResponses];
 
-export type AmenitiesControllerListData = {
+export type AmenitiesControllerListByPropertyData = {
     body?: never;
-    path?: never;
+    path: {
+        propertyId: string;
+    };
     query?: never;
-    url: '/amenities';
+    url: '/properties/{propertyId}/amenities';
 };
 
-export type AmenitiesControllerListResponses = {
+export type AmenitiesControllerListByPropertyResponses = {
     200: Array<AmenityResponseDto>;
 };
 
-export type AmenitiesControllerListResponse = AmenitiesControllerListResponses[keyof AmenitiesControllerListResponses];
+export type AmenitiesControllerListByPropertyResponse = AmenitiesControllerListByPropertyResponses[keyof AmenitiesControllerListByPropertyResponses];
 
-export type AmenitiesControllerCreateData = {
+export type AmenitiesControllerCreateForPropertyData = {
     body: CreateAmenityDto;
-    path?: never;
+    path: {
+        propertyId: string;
+    };
     query?: never;
-    url: '/amenities';
+    url: '/properties/{propertyId}/amenities';
 };
 
-export type AmenitiesControllerCreateResponses = {
+export type AmenitiesControllerCreateForPropertyResponses = {
     201: AmenityResponseDto;
 };
 
-export type AmenitiesControllerCreateResponse = AmenitiesControllerCreateResponses[keyof AmenitiesControllerCreateResponses];
+export type AmenitiesControllerCreateForPropertyResponse = AmenitiesControllerCreateForPropertyResponses[keyof AmenitiesControllerCreateForPropertyResponses];
 
-export type AmenitiesControllerUnassignData = {
+export type AmenitiesControllerAttachToUnitData = {
     body?: never;
     path: {
         unitId: string;
         amenityId: string;
     };
     query?: never;
-    url: '/units/{unitId}/amenities/{amenityId}';
+    url: '/units/{unitId}/amenities/{amenityId}/attach';
 };
 
-export type AmenitiesControllerUnassignResponses = {
-    204: void;
+export type AmenitiesControllerAttachToUnitResponses = {
+    201: AmenityResponseDto;
 };
 
-export type AmenitiesControllerUnassignResponse = AmenitiesControllerUnassignResponses[keyof AmenitiesControllerUnassignResponses];
+export type AmenitiesControllerAttachToUnitResponse = AmenitiesControllerAttachToUnitResponses[keyof AmenitiesControllerAttachToUnitResponses];
 
-export type AmenitiesControllerAssignData = {
+export type AmenitiesControllerDetachFromUnitData = {
     body?: never;
     path: {
         unitId: string;
         amenityId: string;
     };
     query?: never;
-    url: '/units/{unitId}/amenities/{amenityId}';
+    url: '/units/{unitId}/amenities/{amenityId}/detach';
 };
 
-export type AmenitiesControllerAssignResponses = {
+export type AmenitiesControllerDetachFromUnitResponses = {
     204: void;
 };
 
-export type AmenitiesControllerAssignResponse = AmenitiesControllerAssignResponses[keyof AmenitiesControllerAssignResponses];
+export type AmenitiesControllerDetachFromUnitResponse = AmenitiesControllerDetachFromUnitResponses[keyof AmenitiesControllerDetachFromUnitResponses];
+
+export type AmenitiesControllerListByUnitData = {
+    body?: never;
+    path: {
+        unitId: string;
+    };
+    query?: never;
+    url: '/units/{unitId}/amenities';
+};
+
+export type AmenitiesControllerListByUnitResponses = {
+    200: Array<AmenityResponseDto>;
+};
+
+export type AmenitiesControllerListByUnitResponse = AmenitiesControllerListByUnitResponses[keyof AmenitiesControllerListByUnitResponses];
+
+export type AmenitiesControllerUpdateData = {
+    body: UpdateAmenityDto;
+    path: {
+        amenityId: string;
+    };
+    query?: never;
+    url: '/amenities/{amenityId}';
+};
+
+export type AmenitiesControllerUpdateResponses = {
+    200: AmenityResponseDto;
+};
+
+export type AmenitiesControllerUpdateResponse = AmenitiesControllerUpdateResponses[keyof AmenitiesControllerUpdateResponses];
+
+export type ServiceProviderControllerCreateData = {
+    body: CreateServiceDto;
+    path: {
+        propertyId: string;
+    };
+    query?: never;
+    url: '/properties/{propertyId}/service';
+};
+
+export type ServiceProviderControllerCreateResponses = {
+    201: ServiceProviderResponseDto;
+};
+
+export type ServiceProviderControllerCreateResponse = ServiceProviderControllerCreateResponses[keyof ServiceProviderControllerCreateResponses];
+
+export type ServiceProviderControllerListByPropertyData = {
+    body?: never;
+    path: {
+        propertyId: string;
+    };
+    query: {
+        category: string;
+    };
+    url: '/properties/{propertyId}/services';
+};
+
+export type ServiceProviderControllerListByPropertyResponses = {
+    200: Array<ServiceProviderResponseDto>;
+};
+
+export type ServiceProviderControllerListByPropertyResponse = ServiceProviderControllerListByPropertyResponses[keyof ServiceProviderControllerListByPropertyResponses];
+
+export type ServiceProviderControllerUpdateData = {
+    body: UpdateServiceDto;
+    path: {
+        serviceId: string;
+    };
+    query?: never;
+    url: '/service/{serviceId}';
+};
+
+export type ServiceProviderControllerUpdateResponses = {
+    200: ServiceProviderResponseDto;
+};
+
+export type ServiceProviderControllerUpdateResponse = ServiceProviderControllerUpdateResponses[keyof ServiceProviderControllerUpdateResponses];
 
 export type OnboardingControllerGetConfigData = {
     body?: never;
@@ -912,7 +1064,10 @@ export type OnboardingControllerUpdateConfigResponse = OnboardingControllerUpdat
 export type OnboardingControllerListTemplatesData = {
     body?: never;
     path?: never;
-    query?: never;
+    query: {
+        propertyId: string;
+        unitId: string;
+    };
     url: '/lease-templates';
 };
 
@@ -1008,6 +1163,22 @@ export type OnboardingControllerClaimResponses = {
 
 export type OnboardingControllerClaimResponse = OnboardingControllerClaimResponses[keyof OnboardingControllerClaimResponses];
 
+export type OnboardingControllerGetLeasePreviewData = {
+    body?: never;
+    path?: never;
+    query: {
+        leaseId: string;
+        userId: string;
+    };
+    url: '/onboarding/lease-preview';
+};
+
+export type OnboardingControllerGetLeasePreviewResponses = {
+    200: LeaseTemplatePreviewResponseDto;
+};
+
+export type OnboardingControllerGetLeasePreviewResponse = OnboardingControllerGetLeasePreviewResponses[keyof OnboardingControllerGetLeasePreviewResponses];
+
 export type OnboardingControllerCompleteProfileData = {
     body: CompleteProfileDto;
     path?: never;
@@ -1021,18 +1192,74 @@ export type OnboardingControllerCompleteProfileResponses = {
 
 export type OnboardingControllerCompleteProfileResponse = OnboardingControllerCompleteProfileResponses[keyof OnboardingControllerCompleteProfileResponses];
 
-export type OnboardingControllerSignLeaseData = {
-    body: SignLeaseDto;
+export type OnboardingControllerAcceptLeaseData = {
+    body: AcceptLeaseDto;
     path?: never;
     query?: never;
-    url: '/onboarding/sign-lease';
+    url: '/onboarding/accept-lease';
 };
 
-export type OnboardingControllerSignLeaseResponses = {
-    200: LeaseDocumentResponseDto;
+export type OnboardingControllerAcceptLeaseResponses = {
+    200: AcceptLeaseResponseDto;
 };
 
-export type OnboardingControllerSignLeaseResponse = OnboardingControllerSignLeaseResponses[keyof OnboardingControllerSignLeaseResponses];
+export type OnboardingControllerAcceptLeaseResponse = OnboardingControllerAcceptLeaseResponses[keyof OnboardingControllerAcceptLeaseResponses];
+
+export type FilesControllerPresignUploadData = {
+    body: PresignUploadDto;
+    path?: never;
+    query?: never;
+    url: '/files/presign-upload';
+};
+
+export type FilesControllerPresignUploadResponses = {
+    201: PresignUploadResponseDto;
+};
+
+export type FilesControllerPresignUploadResponse = FilesControllerPresignUploadResponses[keyof FilesControllerPresignUploadResponses];
+
+export type FilesControllerCreateAssetData = {
+    body: CreateFileAssetDto;
+    path?: never;
+    query?: never;
+    url: '/files';
+};
+
+export type FilesControllerCreateAssetResponses = {
+    201: FileAssetResponseDto;
+};
+
+export type FilesControllerCreateAssetResponse = FilesControllerCreateAssetResponses[keyof FilesControllerCreateAssetResponses];
+
+export type FilesControllerPresignDownloadData = {
+    body?: never;
+    path: {
+        assetId: string;
+    };
+    query?: never;
+    url: '/files/{assetId}/presign-download';
+};
+
+export type FilesControllerPresignDownloadResponses = {
+    201: PresignDownloadResponseDto;
+};
+
+export type FilesControllerPresignDownloadResponse = FilesControllerPresignDownloadResponses[keyof FilesControllerPresignDownloadResponses];
+
+export type FilesControllerDeleteAssetData = {
+    body?: never;
+    path: {
+        assetId: string;
+    };
+    query?: never;
+    url: '/files/{assetId}';
+};
+
+export type FilesControllerDeleteAssetResponses = {
+    200: FileAssetResponseDto;
+};
+
+export type FilesControllerDeleteAssetResponse = FilesControllerDeleteAssetResponses[keyof FilesControllerDeleteAssetResponses];
 
 export type TenantControllerGetLeasesData = {
     body?: never;
@@ -1046,6 +1273,32 @@ export type TenantControllerGetLeasesResponses = {
 };
 
 export type TenantControllerGetLeasesResponse = TenantControllerGetLeasesResponses[keyof TenantControllerGetLeasesResponses];
+
+export type TenantControllerGetLeaseHistoryData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/tenant/me/leases/history';
+};
+
+export type TenantControllerGetLeaseHistoryResponses = {
+    200: PaginatedTenantLeaseResponseDto;
+};
+
+export type TenantControllerGetLeaseHistoryResponse = TenantControllerGetLeaseHistoryResponses[keyof TenantControllerGetLeaseHistoryResponses];
+
+export type TenantControllerGetPendingLeaseAcceptanceData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/tenant/me/leases/pending-acceptance';
+};
+
+export type TenantControllerGetPendingLeaseAcceptanceResponses = {
+    200: PendingLeaseAcceptanceResponseDto;
+};
+
+export type TenantControllerGetPendingLeaseAcceptanceResponse = TenantControllerGetPendingLeaseAcceptanceResponses[keyof TenantControllerGetPendingLeaseAcceptanceResponses];
 
 export type TenantControllerGetInvoicesData = {
     body?: never;
@@ -1159,21 +1412,6 @@ export type TicketsControllerUpdateResponses = {
 };
 
 export type TicketsControllerUpdateResponse = TicketsControllerUpdateResponses[keyof TicketsControllerUpdateResponses];
-
-export type ServiceProvidersControllerListData = {
-    body?: never;
-    path?: never;
-    query: {
-        category: string;
-    };
-    url: '/tenant/me/service-providers';
-};
-
-export type ServiceProvidersControllerListResponses = {
-    200: Array<ServiceProviderResponseDto>;
-};
-
-export type ServiceProvidersControllerListResponse = ServiceProvidersControllerListResponses[keyof ServiceProvidersControllerListResponses];
 
 export type InvoiceControllerGenerateData = {
     body: GenerateInvoicesDto;
@@ -1373,62 +1611,6 @@ export type AdminControllerUpdateOnboardingDefaultsResponses = {
 };
 
 export type AdminControllerUpdateOnboardingDefaultsResponse = AdminControllerUpdateOnboardingDefaultsResponses[keyof AdminControllerUpdateOnboardingDefaultsResponses];
-
-export type FilesControllerPresignUploadData = {
-    body: PresignUploadDto;
-    path?: never;
-    query?: never;
-    url: '/files/presign-upload';
-};
-
-export type FilesControllerPresignUploadResponses = {
-    201: PresignUploadResponseDto;
-};
-
-export type FilesControllerPresignUploadResponse = FilesControllerPresignUploadResponses[keyof FilesControllerPresignUploadResponses];
-
-export type FilesControllerCreateAssetData = {
-    body: CreateFileAssetDto;
-    path?: never;
-    query?: never;
-    url: '/files';
-};
-
-export type FilesControllerCreateAssetResponses = {
-    201: FileAssetResponseDto;
-};
-
-export type FilesControllerCreateAssetResponse = FilesControllerCreateAssetResponses[keyof FilesControllerCreateAssetResponses];
-
-export type FilesControllerPresignDownloadData = {
-    body?: never;
-    path: {
-        assetId: string;
-    };
-    query?: never;
-    url: '/files/{assetId}/presign-download';
-};
-
-export type FilesControllerPresignDownloadResponses = {
-    201: PresignDownloadResponseDto;
-};
-
-export type FilesControllerPresignDownloadResponse = FilesControllerPresignDownloadResponses[keyof FilesControllerPresignDownloadResponses];
-
-export type FilesControllerDeleteAssetData = {
-    body?: never;
-    path: {
-        assetId: string;
-    };
-    query?: never;
-    url: '/files/{assetId}';
-};
-
-export type FilesControllerDeleteAssetResponses = {
-    200: FileAssetResponseDto;
-};
-
-export type FilesControllerDeleteAssetResponse = FilesControllerDeleteAssetResponses[keyof FilesControllerDeleteAssetResponses];
 
 export type HealthControllerGetHealthData = {
     body?: never;

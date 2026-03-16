@@ -28,6 +28,13 @@ export default function PropertiesScreen() {
       enabled: items.length > 0,
     })),
   });
+  const serviceCountQueries = useQueries({
+    queries: items.map((property) => ({
+      queryKey: ["owner", "property-services-count", property.id],
+      queryFn: () => ownerApi.listServiceProviders(property.id, undefined, { page: 1, pageSize: 1 }),
+      enabled: items.length > 0,
+    })),
+  });
 
   return (
     <Screen>
@@ -52,6 +59,7 @@ export default function PropertiesScreen() {
       <View style={styles.grid}>
         {items.map((property, index) => {
           const unitsTotal = unitCountQueries[index]?.data?.total;
+          const servicesTotal = serviceCountQueries[index]?.data?.total;
           return (
             <Pressable
               key={property.id}
@@ -69,6 +77,9 @@ export default function PropertiesScreen() {
               </Text>
               <Text style={styles.cardUnits}>
                 Units: {typeof unitsTotal === "number" ? unitsTotal : "..."}
+              </Text>
+              <Text style={styles.cardUnits}>
+                Services: {typeof servicesTotal === "number" ? servicesTotal : "..."}
               </Text>
             </Pressable>
           );

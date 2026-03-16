@@ -1,4 +1,7 @@
 import type {
+  AcceptLeaseDto,
+  AcceptLeaseResponseDto,
+  AmenityResponseDto,
   ClaimInviteDto,
   ClaimInviteResponseDto,
   CompleteProfileDto,
@@ -7,23 +10,32 @@ import type {
   CreateAmenityDto,
   CreateLeaseTemplateDto,
   CreatePropertyDto,
+  CreateServiceDto,
   CreateTicketDto,
   CreateUnitDto,
   GenerateInvoicesDto,
+  GenerateInvoicesResponseDto,
+  HouseUnitResponseDto,
   InviteSummaryResponseDto,
   InviteTenantDto,
   InviteTokenResponseDto,
+  LeaseTemplatePreviewResponseDto,
+  LeaseTemplateResponseDto,
   LoginDto,
+  ServiceProviderResponseDto,
   LogoutDto,
   NewLeaseTemplateVersionDto,
+  PendingLeaseAcceptanceResponseDto,
+  PropertyResponseDto,
   RefreshDto,
   RegisterOwnerDto,
   RequestMagicLinkDto,
-  SignLeaseDto,
-  UnitStatus,
+  TenantLeaseResponseDto,
+  UpdateAmenityDto,
   UpdatePropertyDto,
+  UpdateServiceDto,
   UpdateTicketDto,
-  UpdateUnitDto,
+  UpdateUnitDto
 } from "@/src/api/generated";
 import type { PaginatedResponse, TokenPair } from "@/src/types/contracts";
 
@@ -36,46 +48,20 @@ export type LogoutRequest = LogoutDto;
 
 export type AuthTokensResponse = TokenPair;
 
-export interface Property {
-  id: string;
-  orgId: string;
-  name: string;
-  addressLine1?: string;
-  city?: string;
-  country?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
+export type Property = PropertyResponseDto;
 
 export type CreatePropertyRequest = CreatePropertyDto;
 export type UpdatePropertyRequest = UpdatePropertyDto;
 
-export interface Unit {
-  id: string;
-  propertyId: string;
-  unitLabel?: string;
-  name?: string;
-  floor?: number;
-  number?: string;
-  status?: UnitStatus;
-  rent?: number;
-  deposit?: number;
-  serviceCharge?: number;
-  effectiveAt?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
+export type Unit = HouseUnitResponseDto;
 
 export type CreateUnitRequest = CreateUnitDto;
 export type UpdateUnitRequest = UpdateUnitDto;
 
-export interface Amenity {
-  id: string;
-  name: string;
-  description?: string;
-}
+export type Amenity = AmenityResponseDto;
 
 export type CreateAmenityRequest = CreateAmenityDto;
+export type UpdateAmenityRequest = UpdateAmenityDto;
 
 export interface OrgOnboardingConfig {
   id: string;
@@ -83,20 +69,14 @@ export interface OrgOnboardingConfig {
   settings: Record<string, unknown>;
 }
 
-export interface LeaseTemplate {
-  id: string;
-  orgId: string;
-  name?: string;
-  title?: string;
-  version: number;
-  documentMarkdown?: string | null;
-  documentHtml?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
-}
+export type LeaseTemplate = LeaseTemplateResponseDto;
 
 export type CreateLeaseTemplateRequest = CreateLeaseTemplateDto;
 export type NewLeaseTemplateVersionRequest = NewLeaseTemplateVersionDto;
+export interface LeaseTemplateListParams {
+  propertyId?: string;
+  unitId?: string;
+}
 
 export type InviteTenantRequest = InviteTenantDto;
 export type InviteTenantResponse = InviteTokenResponseDto;
@@ -107,23 +87,18 @@ export type OnboardingClaimRequest = ClaimInviteDto;
 
 export type OnboardingClaimResponse = ClaimInviteResponseDto;
 
-export type CompleteProfileRequest = CompleteProfileDto;
+export interface CompleteProfileRequest extends CompleteProfileDto {
+  password: string;
+}
 export type CompleteProfileResponse = CompleteProfileResponseDto;
-export type SignLeaseRequest = SignLeaseDto;
+export type AcceptLeaseRequest = AcceptLeaseDto;
+export type AcceptLeaseResponse = AcceptLeaseResponseDto;
+export type SignLeaseRequest = AcceptLeaseRequest;
 
-export interface LeasePreviewResponse {
-  leaseId: string;
-  renderedPdfUrl?: string;
-  documentHtml?: string;
-}
+export type LeasePreviewResponse = LeaseTemplatePreviewResponseDto;
 
-export interface TenantLease {
-  id: string;
-  unitName?: string;
-  propertyName?: string;
-  startsAt?: string;
-  endsAt?: string;
-}
+export type TenantLease = TenantLeaseResponseDto;
+export type PendingLeaseAcceptanceResponse = PendingLeaseAcceptanceResponseDto;
 
 export interface Invoice {
   id: string;
@@ -145,13 +120,11 @@ export interface Notice {
   createdAt?: string;
 }
 
-export interface ServiceProvider {
-  id: string;
-  name: string;
-  category: string;
-  phone?: string;
-  whatsapp?: string;
-}
+export type CreateServiceProviderRequest = CreateServiceDto;
+
+export type UpdateServiceProviderRequest = UpdateServiceDto;
+
+export type ServiceProvider = ServiceProviderResponseDto;
 
 export type TenantTicketCreateRequest = CreateTicketDto;
 
@@ -173,9 +146,7 @@ export type UpdateOwnerTicketRequest = UpdateTicketDto;
 
 export type GenerateInvoicesRequest = GenerateInvoicesDto;
 
-export interface GenerateInvoicesResponse {
-  generatedCount: number;
-}
+export type GenerateInvoicesResponse = GenerateInvoicesResponseDto;
 
 export interface InvoiceLinkResponse {
   token: string;
@@ -190,7 +161,8 @@ export interface PublicInvoiceResponse {
 }
 
 export interface PresignUploadRequest {
-  fileName: string;
+  fileName?: string;
+  filename?: string;
   contentType: string;
   sizeBytes?: number;
 }
@@ -199,30 +171,38 @@ export interface PresignUploadResponse {
   uploadUrl: string;
   key: string;
   headers?: Record<string, string>;
+  method?: string;
+  expiresInSeconds?: number;
 }
 
 export interface CreateFileAssetRequest {
-  key: string;
-  fileName: string;
-  contentType: string;
+  key?: string;
+  fileName?: string;
+  filename?: string;
+  contentType?: string;
   sizeBytes?: number;
+  type?: string;
+  url?: string;
+  checksum?: string;
 }
 
 export interface FileAsset {
   assetId: string;
+  id?: string;
   url?: string;
 }
 
 export interface PresignDownloadResponse {
   downloadUrl: string;
+  expiresInSeconds?: number;
 }
 
-export interface PropertyListResponse extends PaginatedResponse<Property> {}
-export interface UnitListResponse extends PaginatedResponse<Unit> {}
-export interface AmenityListResponse extends PaginatedResponse<Amenity> {}
-export interface LeaseTemplateListResponse extends PaginatedResponse<LeaseTemplate> {}
-export interface InvoiceListResponse extends PaginatedResponse<Invoice> {}
-export interface NoticeListResponse extends PaginatedResponse<Notice> {}
-export interface ServiceProviderListResponse extends PaginatedResponse<ServiceProvider> {}
-export interface OwnerTicketListResponse extends PaginatedResponse<OwnerTicket> {}
-export interface UnitInviteListResponse extends PaginatedResponse<UnitInvite> {}
+export interface PropertyListResponse extends PaginatedResponse<Property> { }
+export interface UnitListResponse extends PaginatedResponse<Unit> { }
+export interface AmenityListResponse extends PaginatedResponse<Amenity> { }
+export interface LeaseTemplateListResponse extends PaginatedResponse<LeaseTemplate> { }
+export interface InvoiceListResponse extends PaginatedResponse<Invoice> { }
+export interface NoticeListResponse extends PaginatedResponse<Notice> { }
+export interface ServiceProviderListResponse extends PaginatedResponse<ServiceProvider> { }
+export interface OwnerTicketListResponse extends PaginatedResponse<OwnerTicket> { }
+export interface UnitInviteListResponse extends PaginatedResponse<UnitInvite> { }

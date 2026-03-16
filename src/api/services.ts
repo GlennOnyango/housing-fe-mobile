@@ -1,6 +1,8 @@
 import type { AxiosRequestConfig } from "axios";
 
 import type {
+  AcceptLeaseRequest,
+  AcceptLeaseResponse,
   Amenity,
   AmenityListResponse,
   AuthTokensResponse,
@@ -11,6 +13,7 @@ import type {
   CreateFileAssetRequest,
   CreateLeaseTemplateRequest,
   CreatePropertyRequest,
+  CreateServiceProviderRequest,
   CreateUnitRequest,
   FileAsset,
   GenerateInvoicesRequest,
@@ -22,6 +25,7 @@ import type {
   InvoiceListResponse,
   LeasePreviewResponse,
   LeaseTemplate,
+  LeaseTemplateListParams,
   LeaseTemplateListResponse,
   LoginRequest,
   LogoutRequest,
@@ -33,6 +37,7 @@ import type {
   OrgOnboardingConfig,
   OwnerTicket,
   OwnerTicketListResponse,
+  PendingLeaseAcceptanceResponse,
   PresignDownloadResponse,
   PresignUploadRequest,
   PresignUploadResponse,
@@ -53,8 +58,10 @@ import type {
   UnitInvite,
   UnitInviteListResponse,
   UnitListResponse,
+  UpdateAmenityRequest,
   UpdateOwnerTicketRequest,
   UpdatePropertyRequest,
+  UpdateServiceProviderRequest,
   UpdateUnitRequest,
 } from "@/src/api/contracts";
 import { http, rawHttp } from "@/src/api/http-client";
@@ -203,15 +210,15 @@ export const ownerApi = {
       .then((response) => response.data);
   },
 
-  createAmenity(payload: CreateAmenityRequest) {
+  createAmenity(propertyId: string, payload: CreateAmenityRequest) {
     return http
-      .post<Amenity>("/amenities", payload)
+      .post<Amenity>(`/properties/${propertyId}/amenities`, payload)
       .then((response) => response.data);
   },
 
-  listAmenities(params?: PaginationParams) {
+  listAmenities(propertyId: string, params?: PaginationParams) {
     return http
-      .get<AmenityListResponse | Amenity[]>("/amenities", { params })
+      .get<AmenityListResponse | Amenity[]>(`/properties/${propertyId}/amenities`, { params })
       .then((response) => toPaginated<Amenity>(response.data, params));
   },
 
@@ -222,11 +229,46 @@ export const ownerApi = {
   },
 
   assignAmenity(unitId: string, amenityId: string) {
-    return http.post<void>(`/units/${unitId}/amenities/${amenityId}`);
+    return http
+      .post<Amenity>(`/units/${unitId}/amenities/${amenityId}/attach`)
+      .then((response) => response.data);
   },
 
-  unassignAmenity(unitId: string, amenityId: string) {
-    return http.delete<void>(`/units/${unitId}/amenities/${amenityId}`);
+  detachAmenity(unitId: string, amenityId: string) {
+    return http.delete<void>(`/units/${unitId}/amenities/${amenityId}/detach`);
+  },
+
+  updateAmenity(amenityId: string, payload: UpdateAmenityRequest) {
+    return http
+      .patch<Amenity>(`/amenities/${amenityId}`, payload)
+      .then((response) => response.data);
+  },
+
+
+  listServiceProviders(propertyId: string, category?: string, params?: PaginationParams) {
+    return http
+      .get<ServiceProviderListResponse | ServiceProvider[]>(
+        `/properties/${propertyId}/services`,
+        {
+          params: {
+            ...params,
+            category,
+          }
+        },
+      )
+      .then((response) => toPaginated<ServiceProvider>(response.data, params));
+  },
+
+  createServiceProvider(propertyId: string, payload: CreateServiceProviderRequest) {
+    return http
+      .post<ServiceProvider>(`/properties/${propertyId}/service`, payload)
+      .then((response) => response.data);
+  },
+
+  updateServiceProvider(serviceId: string, payload: UpdateServiceProviderRequest) {
+    return http
+      .patch<ServiceProvider>(`/service/${serviceId}`, payload)
+      .then((response) => response.data);
   },
 
   getOnboardingConfig(orgId: string) {
@@ -253,7 +295,7 @@ export const ownerApi = {
       .then((response) => response.data);
   },
 
-  listLeaseTemplates(params?: PaginationParams) {
+  listLeaseTemplates(params?: PaginationParams & LeaseTemplateListParams) {
     return http
       .get<LeaseTemplateListResponse | LeaseTemplate[]>("/lease-templates", { params })
       .then((response) => toPaginated<LeaseTemplate>(response.data, params));
@@ -325,37 +367,96 @@ export const onboardingApi = {
       .then((response) => response.data);
   },
 
-  signLease(inviteToken: string, payload: SignLeaseRequest) {
+  acceptLease(inviteToken: string, payload: AcceptLeaseRequest): Promise<AcceptLeaseResponse> {
     return http
-      .post<void>("/onboarding/sign-lease", payload, {
+      .post<AcceptLeaseResponse>("/onboarding/accept-lease", payload, {
         _skipAuth: true,
-        _cooldownKey: "onboarding.sign-lease",
+        _cooldownKey: "onboarding.accept-lease",
         headers: {
           "x-invite-token": inviteToken,
         },
       })
-      .then((response) => response.data);
+      .then((response) => response.data)
+      .catch((error: unknown) => {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        if (status !== 404) {
+          throw error;
+        }
+
+        return http
+          .post<AcceptLeaseResponse | void>("/onboarding/sign-lease", payload, {
+            _skipAuth: true,
+            _cooldownKey: "onboarding.accept-lease",
+            headers: {
+              "x-invite-token": inviteToken,
+            },
+          })
+          .then((response) => {
+            const source = response.data as Partial<AcceptLeaseResponse> | undefined;
+            if (
+              source &&
+              typeof source.accessToken === "string" &&
+              typeof source.refreshToken === "string"
+            ) {
+              return source as AcceptLeaseResponse;
+            }
+
+            throw new Error(
+              "Accept lease fallback succeeded but no access/refresh tokens were returned.",
+            );
+          });
+      });
   },
 
-  getLeasePreview(inviteToken: string, leaseId: string) {
+  signLease(inviteToken: string, payload: SignLeaseRequest) {
+    return this.acceptLease(inviteToken, payload);
+  },
+
+  getLeasePreview(
+    inviteToken: string,
+    params: {
+      leaseId?: string;
+      userId?: string;
+    },
+  ) {
     return http
       .get<LeasePreviewResponse>("/onboarding/lease-preview", {
         _skipAuth: true,
         headers: {
           "x-invite-token": inviteToken,
         },
-        params: {
-          leaseId,
-        },
+        params,
       })
       .then((response) => response.data);
   },
 };
 
 export const tenantApi = {
-  getLeases() {
+  listLeases(params?: PaginationParams) {
     return http
-      .get<TenantLease[]>("/tenant/me/leases")
+      .get<TenantLease[] | Record<string, unknown>>("/tenant/me/leases", { params })
+      .then((response) => toPaginated<TenantLease>(response.data, params));
+  },
+
+  getLeases() {
+    return this.listLeases().then((response) => response.items);
+  },
+
+  getLeaseHistory(params?: PaginationParams) {
+    return http
+      .get<TenantLease[] | Record<string, unknown>>("/tenant/me/leases/history", { params })
+      .then((response) => toPaginated<TenantLease>(response.data, params));
+  },
+
+  getPendingLeaseAcceptance() {
+    return http
+      .get<PendingLeaseAcceptanceResponse>("/tenant/me/leases/pending-acceptance")
+      .then((response) => response.data);
+  },
+
+  acceptPendingLease(leaseId: string) {
+    return http
+      .post<AcceptLeaseResponse>("/onboarding/accept-lease", { leaseId })
       .then((response) => response.data);
   },
 
@@ -383,19 +484,6 @@ export const tenantApi = {
       .then((response) => toPaginated<Notice>(response.data, params));
   },
 
-  listServiceProviders(category?: string, params?: PaginationParams) {
-    return http
-      .get<ServiceProviderListResponse | ServiceProvider[]>(
-        "/tenant/me/service-providers",
-        {
-          params: {
-            ...params,
-            category,
-          },
-        },
-      )
-      .then((response) => toPaginated<ServiceProvider>(response.data, params));
-  },
 
   createTicket(payload: TenantTicketCreateRequest) {
     return http
@@ -406,21 +494,108 @@ export const tenantApi = {
 
 export const filesApi = {
   presignUpload(payload: PresignUploadRequest) {
+    const fileName = payload.fileName ?? payload.filename;
+    if (!fileName) {
+      throw new Error("fileName is required.");
+    }
+
     return http
-      .post<PresignUploadResponse>("/files/presign-upload", payload)
-      .then((response) => response.data);
+      .post<PresignUploadResponse | Record<string, unknown>>("/files/presign-upload", {
+        filename: fileName,
+        contentType: payload.contentType,
+        metadata:
+          typeof payload.sizeBytes === "number"
+            ? { sizeBytes: String(payload.sizeBytes) }
+            : undefined,
+      })
+      .then((response) => {
+        const source = response.data as Record<string, unknown>;
+        const uploadUrl =
+          typeof source.uploadUrl === "string"
+            ? source.uploadUrl
+            : typeof source.url === "string"
+              ? source.url
+              : "";
+        const key = typeof source.key === "string" ? source.key : "";
+
+        if (!uploadUrl || !key) {
+          throw new Error("Invalid presign upload response.");
+        }
+
+        return {
+          uploadUrl,
+          key,
+          headers:
+            source.headers && typeof source.headers === "object"
+              ? (source.headers as Record<string, string>)
+              : undefined,
+          method: typeof source.method === "string" ? source.method : undefined,
+          expiresInSeconds:
+            typeof source.expiresInSeconds === "number"
+              ? source.expiresInSeconds
+              : undefined,
+        } satisfies PresignUploadResponse;
+      });
   },
 
   createAsset(payload: CreateFileAssetRequest) {
+    const fileType = payload.type ?? payload.contentType ?? "image/png";
+    const fileUrl = payload.url ?? payload.key;
+    if (!fileUrl) {
+      throw new Error("Asset URL/key is required.");
+    }
+
     return http
-      .post<FileAsset>("/files", payload)
-      .then((response) => response.data);
+      .post<FileAsset | Record<string, unknown>>("/files", {
+        type: fileType,
+        url: fileUrl,
+        checksum: payload.checksum,
+      })
+      .then((response) => {
+        const source = response.data as Record<string, unknown>;
+        const assetId =
+          typeof source.assetId === "string"
+            ? source.assetId
+            : typeof source.id === "string"
+              ? source.id
+              : "";
+        if (!assetId) {
+          throw new Error("Invalid file asset response.");
+        }
+
+        return {
+          assetId,
+          id: typeof source.id === "string" ? source.id : undefined,
+          url: typeof source.url === "string" ? source.url : undefined,
+        } satisfies FileAsset;
+      });
   },
 
   presignDownload(assetId: string) {
     return http
-      .post<PresignDownloadResponse>(`/files/${assetId}/presign-download`)
-      .then((response) => response.data);
+      .post<PresignDownloadResponse | Record<string, unknown>>(
+        `/files/${assetId}/presign-download`,
+      )
+      .then((response) => {
+        const source = response.data as Record<string, unknown>;
+        const downloadUrl =
+          typeof source.downloadUrl === "string"
+            ? source.downloadUrl
+            : typeof source.url === "string"
+              ? source.url
+              : "";
+        if (!downloadUrl) {
+          throw new Error("Invalid presign download response.");
+        }
+
+        return {
+          downloadUrl,
+          expiresInSeconds:
+            typeof source.expiresInSeconds === "number"
+              ? source.expiresInSeconds
+              : undefined,
+        } satisfies PresignDownloadResponse;
+      });
   },
 
   deleteAsset(assetId: string) {

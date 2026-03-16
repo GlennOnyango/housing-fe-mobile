@@ -28,6 +28,7 @@ interface SessionContextValue {
   isAuthenticated: boolean;
   bootstrap: () => Promise<void>;
   retryRoleProbe: () => Promise<void>;
+  signInWithTokens: (tokens: TokenPair) => Promise<void>;
   registerOwner: (payload: RegisterOwnerRequest) => Promise<void>;
   login: (payload: LoginRequest) => Promise<void>;
   requestMagicLink: (payload: RequestMagicLinkRequest) => Promise<void>;
@@ -184,6 +185,7 @@ export function SessionProvider({ children, queryClient }: SessionProviderProps)
       isAuthenticated: Boolean(session.accessToken),
       bootstrap,
       retryRoleProbe,
+      signInWithTokens: applyTokensAndResolveRole,
       registerOwner,
       login,
       requestMagicLink,
@@ -195,6 +197,7 @@ export function SessionProvider({ children, queryClient }: SessionProviderProps)
       session,
       bootstrap,
       retryRoleProbe,
+      applyTokensAndResolveRole,
       registerOwner,
       login,
       requestMagicLink,

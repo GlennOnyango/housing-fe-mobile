@@ -1,8 +1,10 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
+import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams } from "expo-router";
-import { StyleSheet, Text } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { messageFromLoggedApiError } from "@/src/api/problem";
 import { ownerApi } from "@/src/api/services";
@@ -18,11 +20,19 @@ export default function OwnerOnboardingAdminScreen() {
   const [orgId, setOrgIdInput] = useState(session.orgId ?? "");
   const [configJson, setConfigJson] = useState("{}");
   const [templateName, setTemplateName] = useState("");
-  const [templateMarkdown, setTemplateMarkdown] = useState("");
+  const [templatePropertyId, setTemplatePropertyId] = useState("");
+  const [templateObjectKey, setTemplateObjectKey] = useState("");
+  const [templateFileName, setTemplateFileName] = useState("");
+  const [templateContentType, setTemplateContentType] = useState("");
   const [templateId, setTemplateId] = useState("");
-  const [versionMarkdown, setVersionMarkdown] = useState("");
+  const [versionPropertyId, setVersionPropertyId] = useState("");
+  const [versionObjectKey, setVersionObjectKey] = useState("");
+  const [versionFileName, setVersionFileName] = useState("");
+  const [versionContentType, setVersionContentType] = useState("");
   const [inviteUnitId, setInviteUnitId] = useState(prefilledUnitId ?? "");
   const [inviteEmail, setInviteEmail] = useState("");
+  const [invitePhone, setInvitePhone] = useState("");
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,14 +66,20 @@ export default function OwnerOnboardingAdminScreen() {
   const createTemplateMutation = useMutation({
     mutationFn: async () =>
       ownerApi.createLeaseTemplate({
-        name: templateName,
-        documentMarkdown: templateMarkdown || undefined,
+        propertyId: templatePropertyId.trim(),
+        name: templateName.trim(),
+        documentObjectKey: templateObjectKey.trim(),
+        documentFileName: templateFileName.trim() || undefined,
+        documentContentType: templateContentType.trim() || undefined,
       }),
     onSuccess: (template) => {
       setMessage(`Lease template created: ${template.id}`);
       setError(null);
       setTemplateName("");
-      setTemplateMarkdown("");
+      setTemplatePropertyId("");
+      setTemplateObjectKey("");
+      setTemplateFileName("");
+      setTemplateContentType("");
     },
     onError: (mutationError) => {
       setMessage(null);
@@ -74,7 +90,10 @@ export default function OwnerOnboardingAdminScreen() {
   const newVersionMutation = useMutation({
     mutationFn: async () =>
       ownerApi.newLeaseTemplateVersion(templateId, {
-        documentMarkdown: versionMarkdown || undefined,
+        propertyId: versionPropertyId.trim() || undefined,
+        documentObjectKey: versionObjectKey.trim() || undefined,
+        documentFileName: versionFileName.trim() || undefined,
+        documentContentType: versionContentType.trim() || undefined,
       }),
     onSuccess: (template) => {
       setMessage(`New template version created (v${template.version}).`);
@@ -89,10 +108,12 @@ export default function OwnerOnboardingAdminScreen() {
   const inviteMutation = useMutation({
     mutationFn: async () =>
       ownerApi.inviteTenant(inviteUnitId, {
-        email: inviteEmail || undefined,
+        email: inviteEmail.trim() || undefined,
+        phone: invitePhone.trim(),
       }),
     onSuccess: (result) => {
-      setMessage(`Invite token issued: ${result.token}`);
+      setInviteToken(result.token);
+      setMessage("Invite token issued.");
       setError(null);
     },
     onError: (mutationError) => {
@@ -134,15 +155,30 @@ export default function OwnerOnboardingAdminScreen() {
       <SectionCard title="Lease templates">
         <LabeledInput label="Name" value={templateName} onChangeText={setTemplateName} />
         <LabeledInput
-          label="Document markdown"
-          value={templateMarkdown}
-          onChangeText={setTemplateMarkdown}
+          label="Property ID"
+          value={templatePropertyId}
+          onChangeText={setTemplatePropertyId}
+        />
+        <LabeledInput
+          label="Document object key"
+          value={templateObjectKey}
+          onChangeText={setTemplateObjectKey}
+        />
+        <LabeledInput
+          label="Document file name"
+          value={templateFileName}
+          onChangeText={setTemplateFileName}
+        />
+        <LabeledInput
+          label="Document content type"
+          value={templateContentType}
+          onChangeText={setTemplateContentType}
           multiline
         />
         <PrimaryButton
           onPress={() => createTemplateMutation.mutate()}
           loading={createTemplateMutation.isPending}
-          disabled={!templateName}
+          disabled={!templateName.trim() || !templatePropertyId.trim() || !templateObjectKey.trim()}
         >
           Create template
         </PrimaryButton>
@@ -154,15 +190,30 @@ export default function OwnerOnboardingAdminScreen() {
       <SectionCard title="Create template version">
         <LabeledInput label="Template ID" value={templateId} onChangeText={setTemplateId} />
         <LabeledInput
-          label="Document markdown"
-          value={versionMarkdown}
-          onChangeText={setVersionMarkdown}
+          label="Property ID (optional)"
+          value={versionPropertyId}
+          onChangeText={setVersionPropertyId}
+        />
+        <LabeledInput
+          label="Document object key"
+          value={versionObjectKey}
+          onChangeText={setVersionObjectKey}
+        />
+        <LabeledInput
+          label="Document file name (optional)"
+          value={versionFileName}
+          onChangeText={setVersionFileName}
+        />
+        <LabeledInput
+          label="Document content type (optional)"
+          value={versionContentType}
+          onChangeText={setVersionContentType}
           multiline
         />
         <PrimaryButton
           onPress={() => newVersionMutation.mutate()}
           loading={newVersionMutation.isPending}
-          disabled={!templateId || !versionMarkdown}
+          disabled={!templateId.trim() || !versionObjectKey.trim()}
         >
           New version
         </PrimaryButton>
@@ -177,13 +228,44 @@ export default function OwnerOnboardingAdminScreen() {
           autoCapitalize="none"
           keyboardType="email-address"
         />
+        <LabeledInput
+          label="Tenant phone"
+          value={invitePhone}
+          onChangeText={setInvitePhone}
+          keyboardType="phone-pad"
+        />
         <PrimaryButton
           onPress={() => inviteMutation.mutate()}
           loading={inviteMutation.isPending}
-          disabled={!inviteUnitId || !inviteEmail}
+          disabled={!inviteUnitId.trim() || !invitePhone.trim()}
         >
           Create invite token
         </PrimaryButton>
+        {inviteToken ? (
+          <Pressable
+            style={styles.tokenRow}
+            onPress={async () => {
+              try {
+                await Clipboard.setStringAsync(inviteToken);
+                setMessage("Invite token copied.");
+                setError(null);
+                Alert.alert("Copy status", "Invite token copied successfully.");
+              } catch {
+                Alert.alert("Copy status", "Failed to copy invite token.");
+              }
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Copy invite token"
+          >
+            <View style={styles.tokenTextWrap}>
+              <Text style={styles.tokenLabel}>Invite token</Text>
+              <Text style={styles.tokenText} selectable>
+                {inviteToken}
+              </Text>
+            </View>
+            <Ionicons name="copy-outline" size={18} color="#1d4ed8" />
+          </Pressable>
+        ) : null}
       </SectionCard>
 
       {message ? <Text style={styles.success}>{message}</Text> : null}
@@ -203,6 +285,31 @@ const styles = StyleSheet.create({
   },
   success: {
     color: "#166534",
+  },
+  tokenRow: {
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    borderRadius: 10,
+    backgroundColor: "#eff6ff",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  tokenTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  tokenLabel: {
+    color: "#1e3a8a",
+    fontWeight: "600",
+    fontSize: 12,
+  },
+  tokenText: {
+    color: "#0f172a",
   },
   error: {
     color: "#b91c1c",

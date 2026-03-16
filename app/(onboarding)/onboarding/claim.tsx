@@ -12,7 +12,7 @@ import { PrimaryButton } from "@/src/components/primary-button";
 import { Screen } from "@/src/components/screen";
 
 export default function OnboardingClaimScreen() {
-  const params = useLocalSearchParams<{ token?: string }>();
+  const params = useLocalSearchParams<{ token?: string; unitLabel?: string }>();
   const [token, setToken] = useState(params.token ?? "");
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +31,10 @@ export default function OnboardingClaimScreen() {
         pathname: "/onboarding/profile",
         params: {
           inviteToken,
+          inviteId: result.inviteId,
           unitId: result.houseUnitId ?? undefined,
+          houseUnitId: result.houseUnitId ?? undefined,
+          unitLabel: params.unitLabel ?? undefined,
           orgId: result.orgId,
         },
       });

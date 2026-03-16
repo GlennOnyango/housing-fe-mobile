@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
+import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ownerApi } from "@/src/api/services";
@@ -32,7 +32,18 @@ export default function OwnerDashboardScreen() {
 
   const amenitiesQuery = useQuery({
     queryKey: ["owner", "dashboard", "amenities-count"],
-    queryFn: () => ownerApi.listAmenities({ page: 1, pageSize: 1 }),
+    queryFn: async () => {
+      const properties = await ownerApi.listProperties({ page: 1, pageSize: 100 });
+      const totals = await Promise.all(
+        properties.items.map((property) =>
+          ownerApi
+            .listAmenities(property.id, { page: 1, pageSize: 1 })
+            .then((response) => response.total),
+        ),
+      );
+
+      return totals.reduce((sum, total) => sum + total, 0);
+    },
   });
 
   const onboardingConfigQuery = useQuery({
@@ -47,15 +58,31 @@ export default function OwnerDashboardScreen() {
     queryFn: () => ownerApi.listOrgTickets(orgId as string, { page: 1, pageSize: 1 }),
   });
 
+  const serviceProvidersQuery = useQuery({
+    queryKey: ["owner", "dashboard", "service-providers-count"],
+    queryFn: async () => {
+      const properties = await ownerApi.listProperties({ page: 1, pageSize: 100 });
+      const totals = await Promise.all(
+        properties.items.map((property) =>
+          ownerApi
+            .listServiceProviders(property.id, undefined, { page: 1, pageSize: 1 })
+            .then((response) => response.total),
+        ),
+      );
+
+      return totals.reduce((sum, total) => sum + total, 0);
+    },
+  });
+
   const counts = {
     properties: propertiesQuery.data?.total ?? 0,
-    amenities: amenitiesQuery.data?.total ?? 0,
+    amenities: amenitiesQuery.data ?? 0,
     onboarding: onboardingConfigQuery.data
       ? Object.keys(onboardingConfigQuery.data.settings ?? {}).length
       : 0,
     invoices: 0,
     tickets: ticketsQuery.data?.total ?? 0,
-    serviceProviders: 0,
+    serviceProviders: serviceProvidersQuery.data ?? 0,
   };
 
   return (

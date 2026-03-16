@@ -33,7 +33,7 @@ export default function OwnerInvoicesScreen() {
         period,
       }),
     onSuccess: (result) => {
-      setMessage(`Generated ${result.generatedCount} invoice(s).`);
+      setMessage(`Generated ${result.count} invoice(s).`);
       setError(null);
       setOrgId(orgId || undefined);
     },

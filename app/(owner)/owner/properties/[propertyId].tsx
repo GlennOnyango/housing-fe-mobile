@@ -13,6 +13,7 @@ import {
 import { ownerApi } from "@/src/api/services";
 import { PrimaryButton } from "@/src/components/primary-button";
 import { Screen } from "@/src/components/screen";
+import { listGeneratedInvoices } from "@/src/features/generated-invoices-store";
 
 export default function PropertyDetailScreen() {
   const { propertyId } = useLocalSearchParams<{ propertyId: string }>();
@@ -30,8 +31,28 @@ export default function PropertyDetailScreen() {
     queryFn: () => ownerApi.listUnits(propertyId, { page: 1, pageSize: 1 }),
   });
   const amenitiesCountQuery = useQuery({
-    queryKey: ["owner", "amenities-count"],
-    queryFn: () => ownerApi.listAmenities({ page: 1, pageSize: 1 }),
+    queryKey: ["owner", "property-amenities-count", propertyId],
+    enabled: Boolean(propertyId),
+    queryFn: () => ownerApi.listAmenities(propertyId, { page: 1, pageSize: 1 }),
+  });
+  const servicesCountQuery = useQuery({
+    queryKey: ["owner", "property-services-count", propertyId],
+    enabled: Boolean(propertyId),
+    queryFn: () => ownerApi.listServiceProviders(propertyId, undefined, { page: 1, pageSize: 1 }),
+  });
+  const activeTenantsCountQuery = useQuery({
+    queryKey: ["owner", "property-active-tenants-count", propertyId],
+    enabled: Boolean(propertyId),
+    queryFn: async () => {
+      const units = await ownerApi.listUnits(propertyId, { page: 1, pageSize: 100 });
+      const inviteLists = await Promise.all(
+        units.items.map(async (unit) => ownerApi.listUnitInvites(unit.id, { page: 1, pageSize: 100 })),
+      );
+
+      return inviteLists
+        .flatMap((list) => list.items)
+        .filter((invite) => Boolean(invite.claimedAt || invite.consumedAt)).length;
+    },
   });
 
   const deleteMutation = useMutation({
@@ -44,6 +65,9 @@ export default function PropertyDetailScreen() {
       setError(messageFromLoggedApiError("owner.properties.delete", mutationError));
     },
   });
+  const generatedInvoicesCount = listGeneratedInvoices().filter(
+    (invoice) => invoice.propertyId === propertyId,
+  ).length;
 
   const actionCards = [
     {
@@ -64,22 +88,29 @@ export default function PropertyDetailScreen() {
       key: "tenants",
       title: "Tenants",
       icon: "people-outline" as const,
-      route: `/owner/properties/${propertyId}/units`,
-      count: 0,
+      route: `/owner/properties/${propertyId}/tenants`,
+      count: activeTenantsCountQuery.data,
     },
     {
       key: "amenities",
-      title: "Services Attached",
+      title: "Amenities",
       icon: "apps-outline" as const,
-      route: "/owner/service-providers",
+      route: `/owner/properties/${propertyId}/amenities`,
       count: amenitiesCountQuery.data?.total,
+    },
+    {
+      key: "services",
+      title: "Services",
+      icon: "construct-outline" as const,
+      route: `/owner/properties/${propertyId}/services`,
+      count: servicesCountQuery.data?.total,
     },
     {
       key: "invoices",
       title: "Invoices",
       icon: "receipt-outline" as const,
-      route: "/owner/invoices",
-      count: 0,
+      route: `/owner/properties/${propertyId}/invoices`,
+      count: generatedInvoicesCount,
     },
   ];
 

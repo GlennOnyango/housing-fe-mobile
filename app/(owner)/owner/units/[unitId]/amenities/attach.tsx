@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -13,33 +13,52 @@ import {
 import { ownerApi } from "@/src/api/services";
 
 export default function AttachAmenitiesScreen() {
-  const { unitId, unitLabel } = useLocalSearchParams<{ unitId: string; unitLabel?: string }>();
+  const { unitId, unitLabel, propertyId } = useLocalSearchParams<{
+    unitId: string;
+    unitLabel?: string;
+    propertyId?: string;
+  }>();
   const [error, setError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const allAmenitiesQuery = useQuery({
-    queryKey: ["owner", "amenities"],
-    queryFn: () => ownerApi.listAmenities({ page: 1, pageSize: 200 }),
-  });
-
-  const attachedAmenitiesQuery = useQuery({
-    queryKey: ["owner", "unit-amenities", unitId],
-    enabled: Boolean(unitId),
-    queryFn: () => ownerApi.listUnitAmenities(unitId, { page: 1, pageSize: 200 }),
+    queryKey: ["owner", "amenities", propertyId],
+    enabled: Boolean(propertyId),
+    queryFn: () => ownerApi.listAmenities(propertyId as string, { page: 1, pageSize: 200 }),
   });
 
   const attachMutation = useMutation({
     mutationFn: async (amenityId: string) => ownerApi.assignAmenity(unitId, amenityId),
-    onSuccess: () => {
+    onSuccess: (amenity) => {
       setError(null);
+      setToastMessage(`${amenity.name} attached to this unit`);
       void queryClient.invalidateQueries({ queryKey: ["owner", "unit-amenities", unitId] });
+      void queryClient.invalidateQueries({ queryKey: ["owner", "unit-amenities-count", unitId] });
+      if (propertyId) {
+        void queryClient.invalidateQueries({ queryKey: ["owner", "amenities", propertyId] });
+      }
     },
     onError: (mutationError) => {
-      setError(messageFromLoggedApiError("owner.amenities.assign", mutationError));
+      setError(messageFromLoggedApiError("owner.amenities.attach", mutationError));
     },
   });
 
-  const attachedIds = new Set((attachedAmenitiesQuery.data?.items ?? []).map((amenity) => amenity.id));
+  useEffect(() => {
+    if (!toastMessage) {
+      return undefined;
+    }
+
+    const timeout = setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+
+    return () => clearTimeout(timeout);
+  }, [toastMessage]);
+
+  const availableAmenities = (allAmenitiesQuery.data?.items ?? []).filter(
+    (amenity) => !amenity.houseUnitId,
+  );
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -49,41 +68,49 @@ export default function AttachAmenitiesScreen() {
         <Text style={styles.copy}>{unitLabel ? `Unit: ${unitLabel}` : "Select amenities for this unit."}</Text>
       </View>
 
+      {toastMessage ? <Text style={styles.toast}>{toastMessage}</Text> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      <View style={styles.actions}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() =>
+            router.push({
+              pathname: "/owner/amenities/new",
+              params: { unitId, unitLabel: unitLabel ?? "", propertyId: propertyId ?? "" },
+            })
+          }
+          style={styles.secondaryButton}
+        >
+          <Text style={styles.secondaryButtonText}>Create amenity</Text>
+        </Pressable>
+      </View>
+
       <View style={styles.middle}>
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {allAmenitiesQuery.isLoading || attachedAmenitiesQuery.isLoading ? (
-            <Text>Loading amenities...</Text>
-          ) : null}
+          {allAmenitiesQuery.isLoading ? <Text>Loading amenities...</Text> : null}
           {allAmenitiesQuery.isError ? (
             <Text style={styles.error}>{problemToMessage(normalizeApiError(allAmenitiesQuery.error))}</Text>
           ) : null}
-          {attachedAmenitiesQuery.isError ? (
-            <Text style={styles.error}>{problemToMessage(normalizeApiError(attachedAmenitiesQuery.error))}</Text>
-          ) : null}
-          {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          {(allAmenitiesQuery.data?.items ?? []).map((amenity) => {
-            const attached = attachedIds.has(amenity.id);
-            return (
-              <View key={amenity.id} style={styles.card}>
-                <Text style={styles.cardTitle}>{amenity.name}</Text>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => {
-                    if (!attached) {
-                      attachMutation.mutate(amenity.id);
-                    }
-                  }}
-                  style={[styles.actionButton, attached && styles.actionButtonDisabled]}
-                  disabled={attached}
-                >
-                  <Text style={[styles.actionButtonText, attached && styles.actionButtonDisabledText]}>
-                    {attached ? "Attached" : "Attach to this unit"}
-                  </Text>
-                </Pressable>
-              </View>
-            );
-          })}
+          {availableAmenities.map((amenity) => (
+            <View key={amenity.id} style={styles.card}>
+              <Text style={styles.cardTitle}>{amenity.name}</Text>
+              <Text style={styles.cardCopy}>Price: {amenity.price}</Text>
+              <Text style={styles.cardCopy}>Condition: {amenity.condition}</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => attachMutation.mutate(amenity.id)}
+                style={styles.actionButton}
+              >
+                <Text style={styles.actionButtonText}>Attach to this unit</Text>
+              </Pressable>
+            </View>
+          ))}
+
+          {!allAmenitiesQuery.isLoading && !availableAmenities.length ? (
+            <Text style={styles.copy}>No unattached property amenities found. Create one first.</Text>
+          ) : null}
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -100,6 +127,10 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 12,
   },
+  actions: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+  },
   middle: {
     flex: 1,
     paddingHorizontal: 16,
@@ -112,8 +143,18 @@ const styles = StyleSheet.create({
   copy: {
     color: "#475569",
   },
+  toast: {
+    marginHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: "#dcfce7",
+    color: "#166534",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontWeight: "600",
+  },
   error: {
     color: "#b91c1c",
+    marginHorizontal: 16,
   },
   list: {
     gap: 10,
@@ -131,6 +172,9 @@ const styles = StyleSheet.create({
     color: "#0f172a",
     fontWeight: "700",
   },
+  cardCopy: {
+    color: "#475569",
+  },
   actionButton: {
     alignSelf: "flex-start",
     borderWidth: 1,
@@ -144,10 +188,17 @@ const styles = StyleSheet.create({
     color: "#0f172a",
     fontWeight: "700",
   },
-  actionButtonDisabled: {
-    borderColor: "#94a3b8",
+  secondaryButton: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    borderRadius: 999,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  actionButtonDisabledText: {
-    color: "#64748b",
+  secondaryButtonText: {
+    color: "#0f172a",
+    fontWeight: "600",
   },
 });

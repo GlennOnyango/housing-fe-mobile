@@ -14,6 +14,8 @@ const TENANT_TITLES: Record<string, string> = {
   "tenant/service-providers/index": "Service Providers",
   "tenant/public-invoice": "Public Invoice",
   "tenant/security": "Security",
+  "tenant/leases/index": "Lease History",
+  "tenant/accept-lease": "Accept Lease",
 };
 
 function formatRouteTitle(name: string) {

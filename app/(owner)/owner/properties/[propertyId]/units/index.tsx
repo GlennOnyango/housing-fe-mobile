@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -30,6 +30,14 @@ export default function PropertyUnitsScreen() {
     queryFn: () => ownerApi.listUnits(propertyId, { page: 1, pageSize: 100 }),
   });
 
+  const amenityCountQueries = useQueries({
+    queries: (unitsQuery.data?.items ?? []).map((unit) => ({
+      queryKey: ["owner", "unit-amenities-count", unit.id],
+      queryFn: () => ownerApi.listUnitAmenities(unit.id, { page: 1, pageSize: 1 }),
+      enabled: Boolean(unit.id),
+    })),
+  });
+
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.top}>
@@ -42,7 +50,7 @@ export default function PropertyUnitsScreen() {
           {unitsQuery.isError ? (
             <Text style={styles.error}>{problemToMessage(normalizeApiError(unitsQuery.error))}</Text>
           ) : null}
-          {(unitsQuery.data?.items ?? []).map((unit) => (
+          {(unitsQuery.data?.items ?? []).map((unit, index) => (
             <Pressable
               key={unit.id}
               accessibilityRole="button"
@@ -51,13 +59,13 @@ export default function PropertyUnitsScreen() {
                   pathname: "/owner/units/[unitId]",
                   params: {
                     unitId: unit.id,
-                    unitLabel: unit.unitLabel ?? unit.name ?? "",
+                    propertyId,
+                    unitLabel: unit.unitLabel ?? "",
                     floor: unit.floor?.toString() ?? "",
                     status: unit.status ?? "",
                     rent: unit.rent?.toString() ?? "",
                     deposit: unit.deposit?.toString() ?? "",
                     serviceCharge: unit.serviceCharge?.toString() ?? "",
-                    effectiveAt: unit.effectiveAt ?? "",
                   },
                 })
               }
@@ -65,19 +73,20 @@ export default function PropertyUnitsScreen() {
             >
               <View style={styles.cardHead}>
                 <Ionicons name="business-outline" size={18} color="#1d4ed8" />
-                <Text style={styles.cardTitle}>{unit.unitLabel ?? unit.name ?? `Unit ${unit.id}`}</Text>
+                <Text style={styles.cardTitle}>{unit.unitLabel ?? `Unit ${unit.id}`}</Text>
                 <View style={[styles.statusPill, statusPillStyle(unit.status)]}>
                   <Text style={styles.statusText}>{unit.status ?? "UNKNOWN"}</Text>
                 </View>
               </View>
               <Text style={styles.meta}>
-                {typeof unit.floor === "number"
-                  ? `Floor ${unit.floor}`
-                  : (unit.number ?? "Floor -")}
+                {typeof unit.floor === "number" ? `Floor ${unit.floor}` : "Floor -"}
               </Text>
               <Text style={styles.meta}>
                 Rent: {unit.rent ?? "-"}  |  Deposit: {unit.deposit ?? "-"}  |  Service:{" "}
                 {unit.serviceCharge ?? "-"}
+              </Text>
+              <Text style={styles.meta}>
+                Amenities: {typeof amenityCountQueries[index]?.data?.total === "number" ? amenityCountQueries[index]?.data?.total : "..."}
               </Text>
             </Pressable>
           ))}

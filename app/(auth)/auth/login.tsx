@@ -1,10 +1,11 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Link, router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { z } from "zod";
 
 import { messageFromLoggedApiError } from "@/src/api/problem";
@@ -24,6 +25,7 @@ type FormValue = z.infer<typeof schema>;
 export default function LoginScreen() {
   const { login } = useSession();
   const [error, setError] = useState<string | null>(null);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const { control, handleSubmit } = useForm<FormValue>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -82,9 +84,23 @@ export default function LoginScreen() {
               label="Password"
               value={field.value}
               onChangeText={field.onChange}
-              secureTextEntry
+              secureTextEntry={!isPasswordVisible}
               autoCapitalize="none"
               error={fieldState.error?.message}
+              rightElement={
+                <Pressable
+                  onPress={() => setIsPasswordVisible((current) => !current)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={isPasswordVisible ? "Hide password" : "Show password"}
+                >
+                  <Ionicons
+                    name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#475569"
+                  />
+                </Pressable>
+              }
             />
           )}
         />
