@@ -23,8 +23,9 @@ export default function TenantInvoiceListScreen() {
 
       {(invoicesQuery.data?.items ?? []).map((invoice) => (
         <SectionCard key={invoice.id} title={`Invoice ${invoice.id}`} subtitle={invoice.status}>
-          <Text>Amount due: {invoice.amountDue}</Text>
-          <Text>Due date: {invoice.dueDate}</Text>
+          <Text>Total: {invoice.total}</Text>
+          <Text>Period: {invoice.period}</Text>
+          <Text>Created: {invoice.createdAt}</Text>
           <Link href={`/tenant/invoices/${invoice.id}` as const} style={styles.link}>
             Open invoice detail
           </Link>

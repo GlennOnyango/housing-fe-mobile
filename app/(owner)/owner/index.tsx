@@ -52,6 +52,12 @@ export default function OwnerDashboardScreen() {
     queryFn: () => ownerApi.getOnboardingConfig(orgId as string),
   });
 
+  const invoicesQuery = useQuery({
+    queryKey: ["owner", "dashboard", "invoices", orgId],
+    enabled: Boolean(orgId),
+    queryFn: () => ownerApi.listInvoices(orgId as string),
+  });
+
   const ticketsQuery = useQuery({
     queryKey: ["owner", "dashboard", "tickets", orgId],
     enabled: Boolean(orgId),
@@ -80,7 +86,7 @@ export default function OwnerDashboardScreen() {
     onboarding: onboardingConfigQuery.data
       ? Object.keys(onboardingConfigQuery.data.settings ?? {}).length
       : 0,
-    invoices: 0,
+    invoices: invoicesQuery.data?.length ?? 0,
     tickets: ticketsQuery.data?.total ?? 0,
     serviceProviders: serviceProvidersQuery.data ?? 0,
   };

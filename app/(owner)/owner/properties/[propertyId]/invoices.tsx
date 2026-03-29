@@ -6,21 +6,31 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { normalizeApiError, problemToMessage } from "@/src/api/problem";
 import { ownerApi } from "@/src/api/services";
+import { useSession } from "@/src/auth/session-context";
 import { LabeledInput } from "@/src/components/labeled-input";
 import { LabeledSelect } from "@/src/components/labeled-select";
 import { Screen } from "@/src/components/screen";
-import { listGeneratedInvoices } from "@/src/features/generated-invoices-store";
 
 export default function PropertyInvoicesScreen() {
   const { propertyId } = useLocalSearchParams<{ propertyId: string }>();
+  const { session } = useSession();
   const [periodFilter, setPeriodFilter] = useState("");
   const [selectedUnitId, setSelectedUnitId] = useState("");
-  const [refreshTick] = useState(0);
 
   const unitsQuery = useQuery({
     queryKey: ["owner", "property-units", propertyId, "invoices-view"],
     enabled: Boolean(propertyId),
     queryFn: () => ownerApi.listUnits(propertyId, { page: 1, pageSize: 100 }),
+  });
+
+  const invoicesQuery = useQuery({
+    queryKey: ["owner", "property-invoices", session.orgId, propertyId, periodFilter, selectedUnitId],
+    enabled: Boolean(session.orgId && propertyId),
+    queryFn: () =>
+      ownerApi.listInvoices(session.orgId as string, {
+        period: periodFilter.trim() || undefined,
+        unitId: selectedUnitId || undefined,
+      }),
   });
 
   const unitOptions = useMemo(
@@ -34,31 +44,28 @@ export default function PropertyInvoicesScreen() {
     [unitsQuery.data?.items],
   );
 
-  const filteredInvoices = useMemo(
-    () =>
-      listGeneratedInvoices().filter((item) => {
-        if (item.propertyId !== propertyId) {
-          return false;
-        }
-        if (selectedUnitId && item.unitId !== selectedUnitId) {
-          return false;
-        }
-        if (periodFilter.trim() && !item.period.includes(periodFilter.trim())) {
-          return false;
-        }
-        return true;
-      }),
-    [periodFilter, propertyId, selectedUnitId, refreshTick],
+  const propertyUnitIds = useMemo(
+    () => new Set((unitsQuery.data?.items ?? []).map((unit) => unit.id)),
+    [unitsQuery.data?.items],
   );
+
+  const visibleInvoices = useMemo(() => {
+    const invoices = invoicesQuery.data ?? [];
+    if (selectedUnitId) {
+      return invoices;
+    }
+
+    return invoices.filter((invoice) => propertyUnitIds.has(invoice.houseUnitId));
+  }, [invoicesQuery.data, propertyUnitIds, selectedUnitId]);
 
   return (
     <Screen>
       <Stack.Screen options={{ title: "Invoices" }} />
-      <Text style={styles.title}>Generated invoices</Text>
+      <Text style={styles.title}>Property invoices</Text>
       <Text style={styles.copy}>Property ID: {propertyId}</Text>
 
       <LabeledInput
-        label="Date filter (YYYY-MM)"
+        label="Period filter (YYYY-MM)"
         value={periodFilter}
         onChangeText={setPeriodFilter}
         autoCapitalize="none"
@@ -74,23 +81,30 @@ export default function PropertyInvoicesScreen() {
       {unitsQuery.isError ? (
         <Text style={styles.error}>{problemToMessage(normalizeApiError(unitsQuery.error))}</Text>
       ) : null}
+      {invoicesQuery.isLoading ? <Text style={styles.copy}>Loading invoices...</Text> : null}
+      {invoicesQuery.isError ? (
+        <Text style={styles.error}>{problemToMessage(normalizeApiError(invoicesQuery.error))}</Text>
+      ) : null}
+      {!session.orgId ? <Text style={styles.copy}>Invoice listing requires an org session.</Text> : null}
 
-      {!filteredInvoices.length ? (
-        <Text style={styles.copy}>
-          No generated invoices match the selected filters. Generate invoices from unit pages.
-        </Text>
-      ) : (
-        <View style={styles.list}>
-          {filteredInvoices.map((invoice) => (
-            <View key={invoice.invoiceId} style={styles.card}>
-              <Text style={styles.cardTitle}>Invoice {invoice.invoiceId}</Text>
-              <Text style={styles.cardCopy}>Unit: {invoice.unitLabel}</Text>
-              <Text style={styles.cardCopy}>Period: {invoice.period}</Text>
-              <Text style={styles.cardCopy}>Generated: {invoice.generatedAtIso}</Text>
-            </View>
-          ))}
-        </View>
-      )}
+      {!invoicesQuery.isLoading && session.orgId && !visibleInvoices.length ? (
+        <Text style={styles.copy}>No invoices match the selected filters.</Text>
+      ) : null}
+
+      <View style={styles.list}>
+        {visibleInvoices.map((invoice) => (
+          <View key={invoice.id} style={styles.card}>
+            <Text style={styles.cardTitle}>Invoice {invoice.id}</Text>
+            <Text style={styles.cardCopy}>Status: {invoice.status}</Text>
+            <Text style={styles.cardCopy}>Unit: {invoice.houseUnitId}</Text>
+            <Text style={styles.cardCopy}>Period: {invoice.period}</Text>
+            <Text style={styles.cardCopy}>Total: {invoice.total}</Text>
+            <Text style={styles.cardCopy}>Created: {invoice.createdAt}</Text>
+            <Text style={styles.cardCopy}>Lines: {invoice.lines.length}</Text>
+            <Text style={styles.cardCopy}>Payments: {invoice.payments.length}</Text>
+          </View>
+        ))}
+      </View>
     </Screen>
   );
 }

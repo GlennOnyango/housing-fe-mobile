@@ -33,7 +33,8 @@
       "expo-router",
       "expo-font",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "API_BASE_URL": "http://localhost:3000",

@@ -19,17 +19,22 @@ import type {
   InviteSummaryResponseDto,
   InviteTenantDto,
   InviteTokenResponseDto,
+  InvoiceDetailsResponseDto,
+  InvoiceLineResponseDto,
+  InvoiceLinkResponseDto,
+  InvoiceResponseDto,
   LeaseTemplatePreviewResponseDto,
   LeaseTemplateResponseDto,
   LoginDto,
-  ServiceProviderResponseDto,
   LogoutDto,
   NewLeaseTemplateVersionDto,
+  PaymentResponseDto,
   PendingLeaseAcceptanceResponseDto,
   PropertyResponseDto,
   RefreshDto,
   RegisterOwnerDto,
   RequestMagicLinkDto,
+  ServiceProviderResponseDto,
   TenantLeaseResponseDto,
   UpdateAmenityDto,
   UpdatePropertyDto,
@@ -100,13 +105,10 @@ export type LeasePreviewResponse = LeaseTemplatePreviewResponseDto;
 export type TenantLease = TenantLeaseResponseDto;
 export type PendingLeaseAcceptanceResponse = PendingLeaseAcceptanceResponseDto;
 
-export interface Invoice {
-  id: string;
-  amountDue: number;
-  dueDate: string;
-  status: string;
-  currency?: string;
-}
+export type Invoice = InvoiceResponseDto;
+export type InvoiceDetails = InvoiceDetailsResponseDto;
+export type InvoiceLine = InvoiceLineResponseDto;
+export type Payment = PaymentResponseDto;
 
 export interface TenantBalance {
   amount: number;
@@ -148,17 +150,9 @@ export type GenerateInvoicesRequest = GenerateInvoicesDto;
 
 export type GenerateInvoicesResponse = GenerateInvoicesResponseDto;
 
-export interface InvoiceLinkResponse {
-  token: string;
-  expiresAt: string;
-  url?: string;
-}
+export type InvoiceLinkResponse = InvoiceLinkResponseDto;
 
-export interface PublicInvoiceResponse {
-  invoice: Invoice;
-  orgName?: string;
-  tenantName?: string;
-}
+export type PublicInvoiceResponse = InvoiceDetailsResponseDto;
 
 export interface PresignUploadRequest {
   fileName?: string;

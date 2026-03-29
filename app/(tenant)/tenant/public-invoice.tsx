@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { normalizeApiError, problemToMessage } from "@/src/api/problem";
 import { publicApi } from "@/src/api/services";
@@ -41,12 +41,41 @@ export default function PublicInvoiceScreen() {
       ) : null}
 
       {invoiceQuery.data ? (
-        <SectionCard title={`Invoice ${invoiceQuery.data.invoice.id}`} subtitle={invoiceQuery.data.invoice.status}>
-          <Text>Amount due: {invoiceQuery.data.invoice.amountDue}</Text>
-          <Text>Due date: {invoiceQuery.data.invoice.dueDate}</Text>
-          <Text>Org: {invoiceQuery.data.orgName ?? "N/A"}</Text>
-          <Text>Tenant: {invoiceQuery.data.tenantName ?? "N/A"}</Text>
-        </SectionCard>
+        <View style={styles.stack}>
+          <SectionCard title={`Invoice ${invoiceQuery.data.id}`} subtitle={invoiceQuery.data.status}>
+            <Text>Total: {invoiceQuery.data.total}</Text>
+            <Text>Period: {invoiceQuery.data.period}</Text>
+            <Text>Unit: {invoiceQuery.data.houseUnitId}</Text>
+            <Text>Created: {invoiceQuery.data.createdAt}</Text>
+          </SectionCard>
+
+          <SectionCard title="Lines">
+            {invoiceQuery.data.lines.length ? (
+              invoiceQuery.data.lines.map((line) => (
+                <View key={line.id} style={styles.row}>
+                  <Text style={styles.rowTitle}>{line.type}</Text>
+                  <Text style={styles.rowCopy}>Amount: {line.amount}</Text>
+                </View>
+              ))
+            ) : (
+              <Text>No invoice lines.</Text>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Payments">
+            {invoiceQuery.data.payments.length ? (
+              invoiceQuery.data.payments.map((payment) => (
+                <View key={payment.id} style={styles.row}>
+                  <Text style={styles.rowTitle}>{payment.provider}</Text>
+                  <Text style={styles.rowCopy}>Amount: {payment.amount}</Text>
+                  <Text style={styles.rowCopy}>Status: {payment.status}</Text>
+                </View>
+              ))
+            ) : (
+              <Text>No payments recorded.</Text>
+            )}
+          </SectionCard>
+        </View>
       ) : null}
     </Screen>
   );
@@ -63,5 +92,18 @@ const styles = StyleSheet.create({
   },
   error: {
     color: "#b91c1c",
+  },
+  stack: {
+    gap: 12,
+  },
+  row: {
+    gap: 4,
+  },
+  rowTitle: {
+    color: "#0f172a",
+    fontWeight: "700",
+  },
+  rowCopy: {
+    color: "#334155",
   },
 });

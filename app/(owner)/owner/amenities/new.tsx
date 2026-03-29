@@ -6,6 +6,7 @@ import { StyleSheet, Text } from "react-native";
 
 import { messageFromLoggedApiError } from "@/src/api/problem";
 import { ownerApi } from "@/src/api/services";
+import { LabeledDateInput } from "@/src/components/labeled-date-input";
 import { LabeledInput } from "@/src/components/labeled-input";
 import { LabeledSelect } from "@/src/components/labeled-select";
 import { PrimaryButton } from "@/src/components/primary-button";
@@ -132,7 +133,7 @@ export default function CreateAmenityScreen() {
         placeholder="0"
       />
       <LabeledSelect label="Condition" value={condition} options={CONDITION_OPTIONS} onValueChange={setCondition} />
-      <LabeledInput label="Fixed on" value={fixedOn} onChangeText={setFixedOn} placeholder="YYYY-MM-DD" />
+      <LabeledDateInput label="Fixed on" value={fixedOn} onChangeText={setFixedOn} placeholder="Select fixed date" />
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <PrimaryButton
         onPress={() => {

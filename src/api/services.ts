@@ -21,6 +21,7 @@ import type {
   InviteTenantRequest,
   InviteTenantResponse,
   Invoice,
+  InvoiceDetails,
   InvoiceLinkResponse,
   InvoiceListResponse,
   LeasePreviewResponse,
@@ -333,12 +334,26 @@ export const ownerApi = {
       .then((response) => response.data);
   },
 
+  listInvoices(
+    orgId: string,
+    params?: {
+      period?: string;
+      year?: number;
+      month?: number;
+      unitId?: string;
+    },
+  ) {
+    return http
+      .get<InvoiceDetails[]>(`/orgs/${orgId}/invoices`, { params })
+      .then((response) => response.data);
+  },
+
   generateInvoiceLink(orgId: string, invoiceId: string, ttlMinutes: number) {
     return http
       .post<InvoiceLinkResponse>(
         `/orgs/${orgId}/invoices/${invoiceId}/link`,
         null,
-        { params: { ttlMinutes } },
+        { params: { ttlMinutes: String(ttlMinutes) } },
       )
       .then((response) => response.data);
   },
@@ -468,7 +483,7 @@ export const tenantApi = {
 
   getInvoice(invoiceId: string) {
     return http
-      .get<Invoice>(`/tenant/me/invoices/${invoiceId}`)
+      .get<InvoiceDetails>(`/tenant/me/invoices/${invoiceId}`)
       .then((response) => response.data);
   },
 

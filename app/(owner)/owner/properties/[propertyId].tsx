@@ -11,14 +11,16 @@ import {
   problemToMessage,
 } from "@/src/api/problem";
 import { ownerApi } from "@/src/api/services";
+import { useSession } from "@/src/auth/session-context";
 import { PrimaryButton } from "@/src/components/primary-button";
 import { Screen } from "@/src/components/screen";
-import { listGeneratedInvoices } from "@/src/features/generated-invoices-store";
 
 export default function PropertyDetailScreen() {
   const { propertyId } = useLocalSearchParams<{ propertyId: string }>();
+  const { session } = useSession();
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const orgId = session.orgId;
 
   const propertyQuery = useQuery({
     queryKey: ["owner", "property", propertyId],
@@ -39,6 +41,18 @@ export default function PropertyDetailScreen() {
     queryKey: ["owner", "property-services-count", propertyId],
     enabled: Boolean(propertyId),
     queryFn: () => ownerApi.listServiceProviders(propertyId, undefined, { page: 1, pageSize: 1 }),
+  });
+  const propertyInvoiceCountQuery = useQuery({
+    queryKey: ["owner", "property-invoices-count", orgId, propertyId],
+    enabled: Boolean(orgId && propertyId),
+    queryFn: async () => {
+      const [units, invoices] = await Promise.all([
+        ownerApi.listUnits(propertyId, { page: 1, pageSize: 200 }),
+        ownerApi.listInvoices(orgId as string),
+      ]);
+      const unitIds = new Set(units.items.map((unit) => unit.id));
+      return invoices.filter((invoice) => unitIds.has(invoice.houseUnitId)).length;
+    },
   });
   const activeTenantsCountQuery = useQuery({
     queryKey: ["owner", "property-active-tenants-count", propertyId],
@@ -65,9 +79,6 @@ export default function PropertyDetailScreen() {
       setError(messageFromLoggedApiError("owner.properties.delete", mutationError));
     },
   });
-  const generatedInvoicesCount = listGeneratedInvoices().filter(
-    (invoice) => invoice.propertyId === propertyId,
-  ).length;
 
   const actionCards = [
     {
@@ -110,7 +121,7 @@ export default function PropertyDetailScreen() {
       title: "Invoices",
       icon: "receipt-outline" as const,
       route: `/owner/properties/${propertyId}/invoices`,
-      count: generatedInvoicesCount,
+      count: propertyInvoiceCountQuery.data,
     },
   ];
 

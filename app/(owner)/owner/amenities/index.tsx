@@ -10,6 +10,7 @@ import {
   problemToMessage,
 } from "@/src/api/problem";
 import { ownerApi } from "@/src/api/services";
+import { LabeledDateInput } from "@/src/components/labeled-date-input";
 import { LabeledInput } from "@/src/components/labeled-input";
 import { LabeledSelect } from "@/src/components/labeled-select";
 import { PrimaryButton } from "@/src/components/primary-button";
@@ -165,11 +166,11 @@ export default function AmenitiesScreen() {
           options={CONDITION_OPTIONS}
           onValueChange={(condition) => setForm((current) => ({ ...current, condition }))}
         />
-        <LabeledInput
+        <LabeledDateInput
           label="Fixed on"
           value={form.fixedOn}
           onChangeText={(fixedOn) => setForm((current) => ({ ...current, fixedOn }))}
-          placeholder="YYYY-MM-DD"
+          placeholder="Select fixed date"
         />
         <PrimaryButton
           onPress={() => {

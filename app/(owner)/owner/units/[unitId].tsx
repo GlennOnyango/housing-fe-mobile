@@ -4,6 +4,7 @@ import { router, Stack, useLocalSearchParams } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ownerApi } from "@/src/api/services";
+import { useSession } from "@/src/auth/session-context";
 import { Screen } from "@/src/components/screen";
 
 export default function UnitDetailsScreen() {
@@ -17,6 +18,7 @@ export default function UnitDetailsScreen() {
     deposit?: string;
     serviceCharge?: string;
   }>();
+  const { session } = useSession();
 
   const unitLabel = params.unitLabel || "Unit Details";
 
@@ -26,6 +28,15 @@ export default function UnitDetailsScreen() {
     queryFn: async () => {
       const response = await ownerApi.listUnitAmenities(params.unitId, { page: 1, pageSize: 200 });
       return response.items.filter((amenity) => amenity.houseUnitId === params.unitId).length;
+    },
+  });
+
+  const invoiceCountQuery = useQuery({
+    queryKey: ["owner", "unit-invoices-count", session.orgId, params.unitId],
+    enabled: Boolean(session.orgId && params.unitId),
+    queryFn: async () => {
+      const invoices = await ownerApi.listInvoices(session.orgId as string, { unitId: params.unitId });
+      return invoices.length;
     },
   });
 
@@ -66,6 +77,7 @@ export default function UnitDetailsScreen() {
       title: "Unit Invoices",
       icon: "receipt-outline" as const,
       pathname: "/owner/units/[unitId]/invoices",
+      count: invoiceCountQuery.data,
     },
   ];
 

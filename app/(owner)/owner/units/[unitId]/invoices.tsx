@@ -1,16 +1,19 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
-import { messageFromLoggedApiError } from "@/src/api/problem";
+import {
+  messageFromLoggedApiError,
+  normalizeApiError,
+  problemToMessage,
+} from "@/src/api/problem";
 import { ownerApi } from "@/src/api/services";
 import { useSession } from "@/src/auth/session-context";
 import { LabeledInput } from "@/src/components/labeled-input";
 import { PrimaryButton } from "@/src/components/primary-button";
 import { Screen } from "@/src/components/screen";
-import { addGeneratedInvoices, listGeneratedInvoices } from "@/src/features/generated-invoices-store";
 
 function currentPeriod() {
   const now = new Date();
@@ -25,17 +28,20 @@ export default function UnitInvoicesScreen() {
     unitLabel?: string;
   }>();
   const { session } = useSession();
+  const queryClient = useQueryClient();
   const [period, setPeriod] = useState(currentPeriod());
+  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [refreshTick, setRefreshTick] = useState(0);
 
-  const generatedForUnit = useMemo(
-    () =>
-      listGeneratedInvoices().filter(
-        (item) => item.unitId === params.unitId && item.propertyId === (params.propertyId ?? ""),
-      ),
-    [params.propertyId, params.unitId, refreshTick],
-  );
+  const invoicesQuery = useQuery({
+    queryKey: ["owner", "unit-invoices", session.orgId, params.unitId, period],
+    enabled: Boolean(session.orgId && params.unitId),
+    queryFn: () =>
+      ownerApi.listInvoices(session.orgId as string, {
+        period: period.trim() || undefined,
+        unitId: params.unitId,
+      }),
+  });
 
   const generateMutation = useMutation({
     mutationFn: async () => {
@@ -43,21 +49,24 @@ export default function UnitInvoicesScreen() {
         throw new Error("Missing orgId in session. Re-open from owner dashboard.");
       }
 
-      return ownerApi.generateInvoices(session.orgId, { period });
+      return ownerApi.generateInvoices(session.orgId, {
+        period: period.trim() || undefined,
+        propertyId: params.propertyId || undefined,
+        unitId: params.unitId,
+      });
     },
     onSuccess: (result) => {
-      addGeneratedInvoices({
-        invoiceIds: result.created ?? [],
-        propertyId: params.propertyId ?? "",
-        unitId: params.unitId,
-        unitLabel: params.unitLabel ?? params.unitId,
-        period,
-        generatedAtIso: new Date().toISOString(),
-      });
-      setRefreshTick((value) => value + 1);
+      setMessage(`Generated ${result.count} invoice(s).`);
       setError(null);
+      void queryClient.invalidateQueries({ queryKey: ["owner", "invoices"] });
+      void queryClient.invalidateQueries({ queryKey: ["owner", "unit-invoices"] });
+      void queryClient.invalidateQueries({ queryKey: ["owner", "property-invoices"] });
+      void queryClient.invalidateQueries({ queryKey: ["owner", "dashboard", "invoices"] });
+      void queryClient.invalidateQueries({ queryKey: ["owner", "property-invoices-count"] });
+      void queryClient.invalidateQueries({ queryKey: ["owner", "unit-invoices-count"] });
     },
     onError: (mutationError) => {
+      setMessage(null);
       setError(messageFromLoggedApiError("owner.unit.invoices.generate", mutationError));
     },
   });
@@ -83,23 +92,30 @@ export default function UnitInvoicesScreen() {
         Generate invoice for this unit
       </PrimaryButton>
 
+      {message ? <Text style={styles.success}>{message}</Text> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {invoicesQuery.isLoading ? <Text style={styles.copy}>Loading invoices...</Text> : null}
+      {invoicesQuery.isError ? (
+        <Text style={styles.error}>{problemToMessage(normalizeApiError(invoicesQuery.error))}</Text>
+      ) : null}
 
-      <Text style={styles.subtitle}>Generated invoices</Text>
-      {!generatedForUnit.length ? (
-        <Text style={styles.copy}>No generated invoices for this unit yet.</Text>
-      ) : (
-        <View style={styles.list}>
-          {generatedForUnit.map((invoice) => (
-            <View key={invoice.invoiceId} style={styles.card}>
-              <Text style={styles.cardTitle}>Invoice {invoice.invoiceId}</Text>
-              <Text style={styles.cardCopy}>Unit: {invoice.unitLabel}</Text>
-              <Text style={styles.cardCopy}>Period: {invoice.period}</Text>
-              <Text style={styles.cardCopy}>Generated: {invoice.generatedAtIso}</Text>
-            </View>
-          ))}
-        </View>
-      )}
+      {!invoicesQuery.isLoading && !(invoicesQuery.data?.length ?? 0) ? (
+        <Text style={styles.copy}>No invoices for this unit yet.</Text>
+      ) : null}
+
+      <View style={styles.list}>
+        {(invoicesQuery.data ?? []).map((invoice) => (
+          <View key={invoice.id} style={styles.card}>
+            <Text style={styles.cardTitle}>Invoice {invoice.id}</Text>
+            <Text style={styles.cardCopy}>Status: {invoice.status}</Text>
+            <Text style={styles.cardCopy}>Period: {invoice.period}</Text>
+            <Text style={styles.cardCopy}>Total: {invoice.total}</Text>
+            <Text style={styles.cardCopy}>Created: {invoice.createdAt}</Text>
+            <Text style={styles.cardCopy}>Lines: {invoice.lines.length}</Text>
+            <Text style={styles.cardCopy}>Payments: {invoice.payments.length}</Text>
+          </View>
+        ))}
+      </View>
     </Screen>
   );
 }
@@ -118,6 +134,9 @@ const styles = StyleSheet.create({
   },
   copy: {
     color: "#475569",
+  },
+  success: {
+    color: "#166534",
   },
   error: {
     color: "#b91c1c",

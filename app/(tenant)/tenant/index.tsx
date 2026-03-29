@@ -166,7 +166,7 @@ export default function TenantDashboardScreen() {
             ) : (
               <Text style={styles.summaryValue}>
                 {invoicesQuery.data?.items[0]
-                  ? `${invoicesQuery.data.items[0].amountDue} due ${invoicesQuery.data.items[0].dueDate}`
+                  ? `${invoicesQuery.data.items[0].total} for ${invoicesQuery.data.items[0].period}`
                   : "No invoice yet."}
               </Text>
             )}

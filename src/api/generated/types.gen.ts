@@ -551,7 +551,13 @@ export type UpdateTicketDto = {
 };
 
 export type GenerateInvoicesDto = {
-    period: string;
+    period?: string;
+    year?: number;
+    month?: number;
+    propertyId?: string;
+    unitId?: string;
+    customExpense?: number;
+    reason?: string;
 };
 
 export type GenerateInvoicesResponseDto = {
@@ -1427,6 +1433,26 @@ export type InvoiceControllerGenerateResponses = {
 };
 
 export type InvoiceControllerGenerateResponse = InvoiceControllerGenerateResponses[keyof InvoiceControllerGenerateResponses];
+
+export type InvoiceControllerListData = {
+    body?: never;
+    path: {
+        orgId: string;
+    };
+    query?: {
+        period?: string;
+        year?: number;
+        month?: number;
+        unitId?: string;
+    };
+    url: '/orgs/{orgId}/invoices';
+};
+
+export type InvoiceControllerListResponses = {
+    200: Array<InvoiceDetailsResponseDto>;
+};
+
+export type InvoiceControllerListResponse = InvoiceControllerListResponses[keyof InvoiceControllerListResponses];
 
 export type InvoiceControllerCreateLinkData = {
     body?: never;
